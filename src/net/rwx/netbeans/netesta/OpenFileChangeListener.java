@@ -20,9 +20,6 @@ import org.openide.util.Exceptions;
  */
 public class OpenFileChangeListener extends FileChangeAdapter {
 
-    private static final long MAX_WAIT_COMPILE_ON_SAVE_IN_MS = 5000;
-    private static final long INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS = 500;
-
     @Override
     public void fileChanged(FileEvent fe) {
         ProgressHandle ph = null;
@@ -31,36 +28,15 @@ public class OpenFileChangeListener extends FileChangeAdapter {
             ph = ProgressHandle.createHandle("Wait to test (" + dataObject.getName() + ")");
             ph.start();
 
-            waitCompileOnSave(dataObject);
-            
             TestSingleRunnable testSingle = new TestSingleRunnable(dataObject);
             testSingle.run();
-            
-        } catch (DataObjectNotFoundException | InterruptedException ex) {
+
+        } catch (DataObjectNotFoundException ex) {
             Exceptions.printStackTrace(ex);
-        }finally {
-            if( ph != null ) {
+        } finally {
+            if (ph != null) {
                 ph.finish();
             }
         }
-    }
-
-    private void waitCompileOnSave(DataObject dataObject) throws InterruptedException {
-        FileObject sourceFile = dataObject.getPrimaryFile();
-        FileObject buildFile = findClassFileFromSourceFile(sourceFile);
-        long startTime = System.currentTimeMillis();
-        while(buildFile.lastModified().before(sourceFile.lastModified())) {
-            Thread.sleep(INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS);
-            if( (System.currentTimeMillis() - startTime) > MAX_WAIT_COMPILE_ON_SAVE_IN_MS ) {
-                return;
-            }
-        }
-    }
-
-    private FileObject findClassFileFromSourceFile(FileObject file) {
-        ClassPath sourceClassPath = ClassPath.getClassPath(file, ClassPath.SOURCE);
-        ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
-        return cp.findResource(
-                sourceClassPath.getResourceName(file, '/', false) + ".class");
     }
 }
