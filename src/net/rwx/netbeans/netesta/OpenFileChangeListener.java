@@ -25,9 +25,10 @@ public class OpenFileChangeListener extends FileChangeAdapter {
 
     @Override
     public void fileChanged(FileEvent fe) {
+        ProgressHandle ph = null;
         try {
             DataObject dataObject = DataObject.find(fe.getFile());
-            ProgressHandle ph = ProgressHandle.createHandle("performing test");
+            ph = ProgressHandle.createHandle("Wait to test (" + dataObject.getName() + ")");
             ph.start();
 
             waitCompileOnSave(dataObject);
@@ -35,9 +36,12 @@ public class OpenFileChangeListener extends FileChangeAdapter {
             TestSingleRunnable testSingle = new TestSingleRunnable(dataObject);
             testSingle.run();
             
-            ph.finish();
         } catch (DataObjectNotFoundException | InterruptedException ex) {
             Exceptions.printStackTrace(ex);
+        }finally {
+            if( ph != null ) {
+                ph.finish();
+            }
         }
     }
 

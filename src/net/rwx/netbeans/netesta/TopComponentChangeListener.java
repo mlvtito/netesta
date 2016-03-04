@@ -7,14 +7,10 @@ package net.rwx.netbeans.netesta;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import org.netbeans.api.java.classpath.ClassPath;
 import org.openide.filesystems.FileChangeListener;
-import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.windows.TopComponent;
 
@@ -25,8 +21,18 @@ import org.openide.windows.TopComponent;
 public class TopComponentChangeListener implements PropertyChangeListener {
 
     private static final String PROPERTY_NAME_OPENED = "opened";
+    private static final String PROPERTY_NAME_ACTIVATED = "activated";
 
     private final FileChangeListener fileChangeListener = new OpenFileChangeListener();
+
+    public TopComponentChangeListener() {
+        for (TopComponent topComponent : TopComponent.getRegistry().getOpened()) {
+            DataObject dataObject = topComponent.getLookup().lookup(DataObject.class);
+            if (dataObject != null) {
+                dataObject.getPrimaryFile().addFileChangeListener(fileChangeListener);
+            }
+        }
+    }
 
     @Override
     public void propertyChange(PropertyChangeEvent event) {
