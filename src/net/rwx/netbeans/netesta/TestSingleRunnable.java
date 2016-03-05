@@ -14,6 +14,7 @@ import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
 import org.netbeans.spi.project.AuxiliaryProperties;
 import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.util.Exceptions;
 import org.openide.util.lookup.Lookups;
@@ -47,7 +48,11 @@ public class TestSingleRunnable implements Runnable {
             return;
         }
 
-        if( isCompileOnSaveEnabled(project)) {
+        if (!isSourceCodeFile()) {
+            return;
+        }
+        
+        if (isCompileOnSaveEnabled(project)) {
             try {
                 waitCompileOnSave(dataObject);
             } catch (InterruptedException ex) {
@@ -91,13 +96,10 @@ public class TestSingleRunnable implements Runnable {
         return cp.findResource(
                 sourceClassPath.getResourceName(file, '/', false) + ".class");
     }
-    
-    private void getSourceGourpsForJavaSource() {
-        SourceGroup[] groups = ProjectUtils
-                .getSources(project)
-                .getSourceGroups(
-                        JavaProjectConstants.SOURCES_TYPE_JAVA
-                );
+
+    private SourceGroup[] getSourceGourpsForJavaSource() {
+        return ProjectUtils.getSources(project)
+                .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
     }
 
     private boolean isActionSupportedAndEnabled() {
@@ -124,6 +126,21 @@ public class TestSingleRunnable implements Runnable {
 
     private boolean isTestableSource() {
         return true;
+    }
+
+    private boolean isSourceCodeFile() {
+        SourceGroup[] groups = getSourceGourpsForJavaSource();
+        if (groups.length < 1) {
+            return false;
+        }
+
+        for (SourceGroup group : groups) {
+            if (FileUtil.isParentOf(group.getRootFolder(), dataObject.getPrimaryFile())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 }
