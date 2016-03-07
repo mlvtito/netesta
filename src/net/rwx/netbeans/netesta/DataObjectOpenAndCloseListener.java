@@ -18,9 +18,17 @@ package net.rwx.netbeans.netesta;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.netbeans.api.java.project.JavaProjectConstants;
+import org.netbeans.api.project.FileOwnerQuery;
+import org.netbeans.api.project.Project;
+import org.netbeans.api.project.ProjectUtils;
+import org.netbeans.api.project.SourceGroup;
 import org.openide.filesystems.FileChangeListener;
+import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.windows.TopComponent;
 
@@ -35,29 +43,70 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
     private final FileChangeListener fileChangeListener = new DataObjectChangeListener();
 
     public DataObjectOpenAndCloseListener() {
-        for (TopComponent topComponent : TopComponent.getRegistry().getOpened()) {
-            DataObject dataObject = topComponent.getLookup().lookup(DataObject.class);
-            if (dataObject != null) {
-                dataObject.getPrimaryFile().addFileChangeListener(fileChangeListener);
-            }
-        }
+        addChangeListenerOnEveryOpenedTestableSourceCode();
     }
 
     @Override
     public void propertyChange(PropertyChangeEvent event) {
         if (openedTopComponent(event)) {
             List<DataObject> newOpenedDataObject = findNewlyOpenedDataObject(event);
-            for (DataObject newOpened : newOpenedDataObject) {
-                newOpened.getPrimaryFile().addFileChangeListener(fileChangeListener);
-            }
+            addChangeListenerIfTestableSourceCode(newOpenedDataObject);
 
             List<DataObject> newClosedDataObject = findNewlyClosedDataObject(event);
-            for (DataObject newClosed : newClosedDataObject) {
-                newClosed.getPrimaryFile().removeFileChangeListener(fileChangeListener);
+            removeChangeListener(newClosedDataObject);
+        }
+    }
+
+    private void addChangeListenerOnEveryOpenedTestableSourceCode() {
+        for( TopComponent topComponent : TopComponent.getRegistry().getOpened()) {
+            DataObject dataObject = topComponent.getLookup().lookup(DataObject.class);
+            if (dataObject != null) {
+                addChangeListenerIfTestableSourceCode(dataObject);
+            }
+        }
+    }
+    
+    private void addChangeListenerIfTestableSourceCode(List<DataObject> dataObjects) {
+        addChangeListenerIfTestableSourceCode(dataObjects.toArray(new DataObject[dataObjects.size()]));
+    }
+    
+    private void addChangeListenerIfTestableSourceCode(DataObject... dataObjects) {
+        for (DataObject dataObject : dataObjects) {
+            if( dataObject != null && isTestableSourceCode(dataObject)) {
+                dataObject.getPrimaryFile().addFileChangeListener(fileChangeListener);
             }
         }
     }
 
+    private void removeChangeListener(List<DataObject> dataObjects) {
+        for( DataObject dataObject : dataObjects) {
+            if( dataObject != null ) {
+                dataObject.getPrimaryFile().removeFileChangeListener(fileChangeListener);
+            }
+        }
+    }
+    
+    private boolean isTestableSourceCode(DataObject dataObject) {
+        SourceGroup[] groups = getSourceGroupsForJavaSource(dataObject);
+        if (groups.length < 1) {
+            return false;
+        }
+
+        for (SourceGroup group : groups) {
+            if (FileUtil.isParentOf(group.getRootFolder(), dataObject.getPrimaryFile())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    private SourceGroup[] getSourceGroupsForJavaSource(DataObject dataObject) {
+        Project project = project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
+        return ProjectUtils.getSources(project)
+                .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
+    }
+    
     private static boolean openedTopComponent(PropertyChangeEvent event) {
         return event.getPropertyName().equals(PROPERTY_NAME_OPENED);
     }

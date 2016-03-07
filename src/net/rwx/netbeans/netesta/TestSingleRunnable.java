@@ -16,15 +16,11 @@
 package net.rwx.netbeans.netesta;
 
 import org.netbeans.api.java.classpath.ClassPath;
-import org.netbeans.api.java.project.JavaProjectConstants;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
-import org.netbeans.api.project.ProjectUtils;
-import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
 import org.netbeans.spi.project.AuxiliaryProperties;
 import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.util.Exceptions;
 import org.openide.util.lookup.Lookups;
@@ -58,25 +54,17 @@ public class TestSingleRunnable implements Runnable {
             return;
         }
 
-        if (!isSourceCodeFile()) {
-            return;
+        if (isCompileOnSaveEnabled()) {
+            waitCompileOnSave();
         }
         
-        if (isCompileOnSaveEnabled(project)) {
-            try {
-                waitCompileOnSave(dataObject);
-            } catch (InterruptedException ex) {
-                Exceptions.printStackTrace(ex);
-            }
-        }
-        getSourceGourpsForJavaSource();
-        if (isActionSupportedAndEnabled() && isTestableSource()) {
+        if (isActionSupportedAndEnabled()) {
             performTestSingleAction();
         }
     }
 
-    private boolean isCompileOnSaveEnabled(Project prj) {
-        AuxiliaryProperties auxprops = prj.getLookup().lookup(AuxiliaryProperties.class);
+    private boolean isCompileOnSaveEnabled() {
+        AuxiliaryProperties auxprops = project.getLookup().lookup(AuxiliaryProperties.class);
         if (auxprops == null) {
             // Cannot use ProjectUtils.getPreferences due to compatibility.
             return false;
@@ -88,7 +76,15 @@ public class TestSingleRunnable implements Runnable {
         return !"none".equalsIgnoreCase(cos);
     }
 
-    private void waitCompileOnSave(DataObject dataObject) throws InterruptedException {
+    private void waitCompileOnSave() {
+        try {
+            tryToWaitCompileOnSave();
+        } catch (InterruptedException ex) {
+            Exceptions.printStackTrace(ex);
+        }
+    }
+
+    private void tryToWaitCompileOnSave() throws InterruptedException {
         FileObject sourceFile = dataObject.getPrimaryFile();
         FileObject buildFile = findClassFileFromSourceFile(sourceFile);
         long startTime = System.currentTimeMillis();
@@ -105,11 +101,6 @@ public class TestSingleRunnable implements Runnable {
         ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
         return cp.findResource(
                 sourceClassPath.getResourceName(file, '/', false) + ".class");
-    }
-
-    private SourceGroup[] getSourceGourpsForJavaSource() {
-        return ProjectUtils.getSources(project)
-                .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
     }
 
     private boolean isActionSupportedAndEnabled() {
@@ -133,24 +124,4 @@ public class TestSingleRunnable implements Runnable {
         }
         return false;
     }
-
-    private boolean isTestableSource() {
-        return true;
-    }
-
-    private boolean isSourceCodeFile() {
-        SourceGroup[] groups = getSourceGourpsForJavaSource();
-        if (groups.length < 1) {
-            return false;
-        }
-
-        for (SourceGroup group : groups) {
-            if (FileUtil.isParentOf(group.getRootFolder(), dataObject.getPrimaryFile())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
 }
