@@ -57,7 +57,7 @@ public class TestSingleRunnable implements Runnable {
         if (isCompileOnSaveEnabled()) {
             waitCompileOnSave();
         }
-        
+
         if (isActionSupportedAndEnabled()) {
             performTestSingleAction();
         }
@@ -88,12 +88,17 @@ public class TestSingleRunnable implements Runnable {
         FileObject sourceFile = dataObject.getPrimaryFile();
         FileObject buildFile = findClassFileFromSourceFile(sourceFile);
         long startTime = System.currentTimeMillis();
-        while (buildFile.lastModified().before(sourceFile.lastModified())) {
+        while (sourceFileNotCompiled(sourceFile, buildFile)) {
             Thread.sleep(INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS);
             if ((System.currentTimeMillis() - startTime) > MAX_WAIT_COMPILE_ON_SAVE_IN_MS) {
                 return;
             }
         }
+    }
+
+    private static boolean sourceFileNotCompiled(FileObject sourceFile, FileObject buildFile) {
+        return buildFile == null
+                || buildFile.lastModified().before(sourceFile.lastModified());
     }
 
     private FileObject findClassFileFromSourceFile(FileObject file) {
