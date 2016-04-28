@@ -33,11 +33,15 @@ public class DataObjectChangeListener extends FileChangeAdapter {
         ProgressHandle progressHandle = null;
         try {
             DataObject dataObject = DataObject.find(fe.getFile());
-            progressHandle = ProgressHandle.createHandle("Wait to test (" + dataObject.getName() + ")");
-            progressHandle.start();
-
             TestSingleRunnable testSingle = new TestSingleRunnable(dataObject);
-            testSingle.run();
+            if (testSingle.isActionSupportedAndEnabled() && testSingle.hasTestClass()) {
+                if (testSingle.isCompileOnSaveEnabled()) {
+                    progressHandle = ProgressHandle.createHandle("Wait to test (" + dataObject.getName() + ")");
+                    progressHandle.start();
+                }
+
+                testSingle.run();
+            }
 
         } catch (DataObjectNotFoundException ex) {
             Exceptions.printStackTrace(ex);

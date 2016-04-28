@@ -16,11 +16,15 @@
 package net.rwx.netbeans.netesta;
 
 import org.netbeans.api.java.classpath.ClassPath;
+import org.netbeans.api.java.project.JavaProjectConstants;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
+import org.netbeans.api.project.ProjectUtils;
+import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
 import org.netbeans.spi.project.AuxiliaryProperties;
 import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.util.Exceptions;
 import org.openide.util.lookup.Lookups;
@@ -32,7 +36,7 @@ import org.openide.util.lookup.Lookups;
 public class TestSingleRunnable implements Runnable {
 
     private static final long MAX_WAIT_COMPILE_ON_SAVE_IN_MS = 10000;
-    private static final long INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS = 500;
+    private static final long INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS = 100;
 
     private final Project project;
     private final DataObject dataObject;
@@ -63,7 +67,7 @@ public class TestSingleRunnable implements Runnable {
         }
     }
 
-    private boolean isCompileOnSaveEnabled() {
+    public boolean isCompileOnSaveEnabled() {
         AuxiliaryProperties auxprops = project.getLookup().lookup(AuxiliaryProperties.class);
         if (auxprops == null) {
             // Cannot use ProjectUtils.getPreferences due to compatibility.
@@ -108,7 +112,7 @@ public class TestSingleRunnable implements Runnable {
                 sourceClassPath.getResourceName(file, '/', false) + ".class");
     }
 
-    private boolean isActionSupportedAndEnabled() {
+    public boolean isActionSupportedAndEnabled() {
         String actionCode = ActionProvider.COMMAND_TEST_SINGLE;
         return isTestFileActionIn(actionProvider.getSupportedActions())
                 && actionProvider.isActionEnabled(actionCode, Lookups.fixed(dataObject));
@@ -128,5 +132,26 @@ public class TestSingleRunnable implements Runnable {
             }
         }
         return false;
+    }
+
+    public boolean hasTestClass() {
+        SourceGroup group = getSourceGroup();
+        System.out.println("net.rwx.netbeans.netesta.TestSingleRunnable.hasTestClass() : " + group.getName());
+        // 1SourceRoot
+        // 2TestSourceRoot
+        return true;
+    }
+
+    private SourceGroup getSourceGroup() {
+        SourceGroup[] groups = ProjectUtils.getSources(project)
+                .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
+        
+        for( SourceGroup group : groups ) {
+            if (FileUtil.isParentOf(group.getRootFolder(), dataObject.getPrimaryFile())) {
+                return group;
+            }
+        }
+        
+        throw new RuntimeException("Unable to find parent group for " + dataObject.getPrimaryFile());
     }
 }
