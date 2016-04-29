@@ -58,34 +58,34 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
     }
 
     private void addChangeListenerOnEveryOpenedTestableSourceCode() {
-        for( TopComponent topComponent : TopComponent.getRegistry().getOpened()) {
+        for (TopComponent topComponent : TopComponent.getRegistry().getOpened()) {
             DataObject dataObject = topComponent.getLookup().lookup(DataObject.class);
             if (dataObject != null) {
                 addChangeListenerIfTestableSourceCode(dataObject);
             }
         }
     }
-    
+
     private void addChangeListenerIfTestableSourceCode(List<DataObject> dataObjects) {
         addChangeListenerIfTestableSourceCode(dataObjects.toArray(new DataObject[dataObjects.size()]));
     }
-    
+
     private void addChangeListenerIfTestableSourceCode(DataObject... dataObjects) {
         for (DataObject dataObject : dataObjects) {
-            if( dataObject != null && isTestableSourceCode(dataObject)) {
+            if (dataObject != null && isTestableSourceCode(dataObject)) {
                 dataObject.getPrimaryFile().addFileChangeListener(fileChangeListener);
             }
         }
     }
 
     private void removeChangeListener(List<DataObject> dataObjects) {
-        for( DataObject dataObject : dataObjects) {
-            if( dataObject != null ) {
+        for (DataObject dataObject : dataObjects) {
+            if (dataObject != null) {
                 dataObject.getPrimaryFile().removeFileChangeListener(fileChangeListener);
             }
         }
     }
-    
+
     private boolean isTestableSourceCode(DataObject dataObject) {
         SourceGroup[] groups = getSourceGroupsForJavaSource(dataObject);
         if (groups.length < 1) {
@@ -100,13 +100,17 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
 
         return false;
     }
-    
+
     private SourceGroup[] getSourceGroupsForJavaSource(DataObject dataObject) {
         Project project = project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
-        return ProjectUtils.getSources(project)
-                .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
+        if (project != null) {
+            return ProjectUtils.getSources(project)
+                    .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
+        } else {
+            return new SourceGroup[0];
+        }
     }
-    
+
     private static boolean openedTopComponent(PropertyChangeEvent event) {
         return event.getPropertyName().equals(PROPERTY_NAME_OPENED);
     }
