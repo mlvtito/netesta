@@ -15,6 +15,7 @@
  */
 package net.rwx.netbeans.netesta;
 
+import java.io.File;
 import org.netbeans.api.java.classpath.ClassPath;
 import org.netbeans.api.java.project.JavaProjectConstants;
 import org.netbeans.api.project.FileOwnerQuery;
@@ -136,22 +137,45 @@ public class TestSingleRunnable implements Runnable {
 
     public boolean hasTestClass() {
         SourceGroup group = getSourceGroup();
-        System.out.println("net.rwx.netbeans.netesta.TestSingleRunnable.hasTestClass() : " + group.getName());
-        // 1SourceRoot
-        // 2TestSourceRoot
-        return true;
+        if (group.getName().contains("Test")) {
+            return true;
+        } else {
+            String groupRootFolder = group.getRootFolder().getPath();
+            String relativeClassPath = dataObject.getPrimaryFile().getPath().substring(groupRootFolder.length());
+            SourceGroup testSource = findTestJavaSourceGroup();
+            if (testSource != null) {
+                String relativeTestClassPath = relativeClassPath.replace(".java", "Test.java");
+                File expectedTestClass = new File(testSource.getRootFolder().getPath() + relativeTestClassPath);
+                if (expectedTestClass.exists()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private SourceGroup getSourceGroup() {
         SourceGroup[] groups = ProjectUtils.getSources(project)
                 .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
-        
-        for( SourceGroup group : groups ) {
+
+        for (SourceGroup group : groups) {
             if (FileUtil.isParentOf(group.getRootFolder(), dataObject.getPrimaryFile())) {
                 return group;
             }
         }
-        
+
         throw new RuntimeException("Unable to find parent group for " + dataObject.getPrimaryFile());
+    }
+
+    private SourceGroup findTestJavaSourceGroup() {
+        SourceGroup[] groups = ProjectUtils.getSources(project)
+                .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);
+        for (SourceGroup group : groups) {
+            if (group.getName().contains("Test")) {
+                return group;
+            }
+        }
+
+        return null;
     }
 }
