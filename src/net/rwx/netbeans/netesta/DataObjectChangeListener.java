@@ -28,19 +28,30 @@ import org.openide.util.Exceptions;
  */
 public class DataObjectChangeListener extends FileChangeAdapter {
 
+    private final TestSingleOperationFactory operationFactory;
+
+    public DataObjectChangeListener() {
+        this.operationFactory = new TestSingleOperationFactory();
+    }
+
     @Override
     public void fileChanged(FileEvent fe) {
         ProgressHandle progressHandle = null;
         try {
             DataObject dataObject = DataObject.find(fe.getFile());
-            TestSingleRunnable testSingle = new TestSingleRunnable(dataObject);
-            if (testSingle.isActionSupportedAndEnabled() && testSingle.hasTestClass()) {
-                if (testSingle.isCompileOnSaveEnabled()) {
-                    progressHandle = ProgressHandle.createHandle("Wait to test (" + dataObject.getName() + ")");
-                    progressHandle.start();
-                }
+            TestSingleOperation testSingle = operationFactory.buildForDataObject(dataObject);
 
-                testSingle.run();
+            if (testSingle.isActionSupportedAndEnabled() && testSingle.hasTestClass()) {
+                if (testSingle.isCompileOnSaveEnabled() && testSingle.isWaitingForCompilation()) {
+                    testSingle.resetWaitingForCompilation();
+                } else {
+                    if (testSingle.isCompileOnSaveEnabled()) {
+                        progressHandle = ProgressHandle.createHandle("Wait to test (" + dataObject.getName() + ")");
+                        progressHandle.start();
+                    }
+
+                    testSingle.run();
+                }
             }
 
         } catch (DataObjectNotFoundException ex) {

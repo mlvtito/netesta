@@ -16,7 +16,6 @@
 package net.rwx.netbeans.netesta;
 
 import java.io.File;
-import org.netbeans.api.java.classpath.ClassPath;
 import org.netbeans.api.java.project.JavaProjectConstants;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
@@ -24,28 +23,25 @@ import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
 import org.netbeans.spi.project.AuxiliaryProperties;
-import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
-import org.openide.util.Exceptions;
 import org.openide.util.lookup.Lookups;
 
 /**
  *
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
-public class TestSingleRunnable implements Runnable {
-
-    private static final long MAX_WAIT_COMPILE_ON_SAVE_IN_MS = 10000;
-    private static final long INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS = 100;
+public class TestSingleOperation {
 
     private final Project project;
     private final DataObject dataObject;
     private final ActionProvider actionProvider;
+    private final TestSingleCompileOnSave compileOnSave;
 
-    public TestSingleRunnable(DataObject dataObject) {
+    public TestSingleOperation(DataObject dataObject) {
         this.dataObject = dataObject;
         this.project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
+        this.compileOnSave = new TestSingleCompileOnSave(dataObject);
         if (project != null) {
             this.actionProvider = project.getLookup().lookup(ActionProvider.class);
         } else {
@@ -53,14 +49,13 @@ public class TestSingleRunnable implements Runnable {
         }
     }
 
-    @Override
     public void run() {
         if (project == null || actionProvider == null) {
             return;
         }
 
         if (isCompileOnSaveEnabled()) {
-            waitCompileOnSave();
+            compileOnSave.waitForCompilation();
         }
 
         if (isActionSupportedAndEnabled()) {
@@ -81,38 +76,14 @@ public class TestSingleRunnable implements Runnable {
         return !"none".equalsIgnoreCase(cos);
     }
 
-    private void waitCompileOnSave() {
-        try {
-            tryToWaitCompileOnSave();
-        } catch (InterruptedException ex) {
-            Exceptions.printStackTrace(ex);
-        }
+    public boolean isWaitingForCompilation() {
+        return compileOnSave.isWaitingForCompilation();
     }
-
-    private void tryToWaitCompileOnSave() throws InterruptedException {
-        FileObject sourceFile = dataObject.getPrimaryFile();
-        FileObject buildFile = findClassFileFromSourceFile(sourceFile);
-        long startTime = System.currentTimeMillis();
-        while (sourceFileNotCompiled(sourceFile, buildFile)) {
-            Thread.sleep(INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS);
-            if ((System.currentTimeMillis() - startTime) > MAX_WAIT_COMPILE_ON_SAVE_IN_MS) {
-                return;
-            }
-        }
+    
+    public void resetWaitingForCompilation() {
+        compileOnSave.resetWaiting();
     }
-
-    private static boolean sourceFileNotCompiled(FileObject sourceFile, FileObject buildFile) {
-        return buildFile == null
-                || buildFile.lastModified().before(sourceFile.lastModified());
-    }
-
-    private FileObject findClassFileFromSourceFile(FileObject file) {
-        ClassPath sourceClassPath = ClassPath.getClassPath(file, ClassPath.SOURCE);
-        ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
-        return cp.findResource(
-                sourceClassPath.getResourceName(file, '/', false) + ".class");
-    }
-
+    
     public boolean isActionSupportedAndEnabled() {
         String actionCode = ActionProvider.COMMAND_TEST_SINGLE;
         return isTestFileActionIn(actionProvider.getSupportedActions())
