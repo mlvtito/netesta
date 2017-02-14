@@ -31,17 +31,15 @@ import org.openide.util.lookup.Lookups;
  *
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
-public class TestSingleOperation {
+public class TestOperation {
 
     private final Project project;
     private final DataObject dataObject;
     private final ActionProvider actionProvider;
-    private final TestSingleCompileOnSave compileOnSave;
 
-    public TestSingleOperation(DataObject dataObject) {
+    public TestOperation(DataObject dataObject) {
         this.dataObject = dataObject;
         this.project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
-        this.compileOnSave = new TestSingleCompileOnSave(dataObject);
         if (project != null) {
             this.actionProvider = project.getLookup().lookup(ActionProvider.class);
         } else {
@@ -53,14 +51,8 @@ public class TestSingleOperation {
         if (project == null || actionProvider == null) {
             return;
         }
-
-        if (isCompileOnSaveEnabled()) {
-            compileOnSave.waitForCompilation();
-        }
-
-        if (isActionSupportedAndEnabled()) {
-            performTestSingleAction();
-        }
+        waitingForCompilation = false;
+        performTestSingleAction();
     }
 
     public boolean isCompileOnSaveEnabled() {
@@ -77,11 +69,7 @@ public class TestSingleOperation {
     }
 
     public boolean isWaitingForCompilation() {
-        return compileOnSave.isWaitingForCompilation();
-    }
-    
-    public void resetWaitingForCompilation() {
-        compileOnSave.resetWaiting();
+        return waitingForCompilation;
     }
     
     public boolean isActionSupportedAndEnabled() {
@@ -148,5 +136,11 @@ public class TestSingleOperation {
         }
 
         return null;
+    }
+
+    private boolean waitingForCompilation = false;
+    
+    void waitForCompilation() {
+        waitingForCompilation = true;
     }
 }

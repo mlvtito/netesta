@@ -18,7 +18,9 @@ package net.rwx.netbeans.netesta;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.netbeans.api.java.project.JavaProjectConstants;
 import org.netbeans.api.project.FileOwnerQuery;
@@ -38,7 +40,7 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
 
     private static final String PROPERTY_NAME_OPENED = "opened";
 
-    private final FileChangeListener fileChangeListener = new DataObjectChangeListener();
+    private final FileChangeListener fileChangeListener = new SourceChangeListener();
 
     public DataObjectOpenAndCloseListener() {
         addChangeListenerOnEveryOpenedTestableSourceCode();
@@ -68,10 +70,14 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
         addChangeListenerIfTestableSourceCode(dataObjects.toArray(new DataObject[dataObjects.size()]));
     }
 
+    private Map<DataObject, NetestaHandler> handlers = new HashMap<>();
+    
     private void addChangeListenerIfTestableSourceCode(DataObject... dataObjects) {
         for (DataObject dataObject : dataObjects) {
             if (dataObject != null && isTestableSourceCode(dataObject)) {
-                dataObject.getPrimaryFile().addFileChangeListener(fileChangeListener);
+                NetestaHandler handler = new NetestaHandler(dataObject);
+                handlers.put(dataObject, handler);
+                handler.init();
             }
         }
     }
@@ -79,7 +85,8 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
     private void removeChangeListener(List<DataObject> dataObjects) {
         for (DataObject dataObject : dataObjects) {
             if (dataObject != null) {
-                dataObject.getPrimaryFile().removeFileChangeListener(fileChangeListener);
+                NetestaHandler handler = handlers.remove(dataObject);
+                handler.release();
             }
         }
     }
@@ -100,7 +107,7 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
     }
 
     private SourceGroup[] getSourceGroupsForJavaSource(DataObject dataObject) {
-        Project project = project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
+        Project project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
         if (project != null) {
             return ProjectUtils.getSources(project)
                     .getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA);

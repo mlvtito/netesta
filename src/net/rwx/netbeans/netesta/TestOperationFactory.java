@@ -23,14 +23,28 @@ import org.openide.loaders.DataObject;
  *
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
-public class TestSingleOperationFactory {
+public class TestOperationFactory {
     
-    private final Map<DataObject, TestSingleOperation> operationCache = new HashMap<>();
+    private static final TestOperationFactory instance = new TestOperationFactory();
     
-    TestSingleOperation buildForDataObject(DataObject dataObject) {
+    private final Map<DataObject, TestOperation> operationCache;
+
+    private TestOperationFactory() {
+        operationCache = new HashMap<>();
+    }
+    
+    static TestOperationFactory get() {
+        return instance;
+    }
+    
+    void initialize(DataObject dataObject) {
         if( ! operationCache.containsKey(dataObject)) {
-            operationCache.put(dataObject, new TestSingleOperation(dataObject));
+            operationCache.put(dataObject, new TestOperation(dataObject));
         }
+    }
+    
+    TestOperation get(DataObject dataObject) {
+        initialize(dataObject);
         return operationCache.get(dataObject);
     }
 }

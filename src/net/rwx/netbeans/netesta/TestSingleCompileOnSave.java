@@ -25,8 +25,8 @@ import org.openide.util.Exceptions;
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
 public class TestSingleCompileOnSave {
-    private static final long MAX_WAIT_COMPILE_ON_SAVE_IN_MS = 10000;
-    private static final long INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS = 10;
+    private static final long MAX_WAIT_COMPILE_ON_SAVE_IN_MS = 60000;
+    private static final long INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS = 100;
     
     private final DataObject dataObject;
     private boolean waitingForCompilation = false;
@@ -51,6 +51,7 @@ public class TestSingleCompileOnSave {
     }
 
     public void resetWaiting() {
+        System.out.println("################ RESETING TIMEOUT" );
         startTime = System.currentTimeMillis();
     }
     
@@ -62,8 +63,11 @@ public class TestSingleCompileOnSave {
         while (sourceFileNotCompiled(sourceFile, buildFile)) {
             Thread.sleep(INTERVAL_WAIT_COMPILE_ON_SAVE_IN_MS);
             if ((System.currentTimeMillis() - startTime) > MAX_WAIT_COMPILE_ON_SAVE_IN_MS) {
+                System.out.println("################ TIMEOUTING # " + buildFile.isLocked() );
                 return;
             }
+            buildFile = findClassFileFromSourceFile(sourceFile);
+            buildFile.refresh();
         }
     }
     
@@ -75,6 +79,10 @@ public class TestSingleCompileOnSave {
     }
     
     private static boolean sourceFileNotCompiled(FileObject sourceFile, FileObject buildFile) {
+        System.out.println("#######################################################################################");
+        System.out.println("############### sourceFile  : (" + sourceFile.lastModified() + ")" + sourceFile);
+        System.out.println("############### buildFile   : (" + buildFile.lastModified() + ")" + buildFile);
+        System.out.println("#######################################################################################");
         return buildFile == null
                 || sourceFile.lastModified().after(buildFile.lastModified());
     }
