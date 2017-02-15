@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.rwx.netbeans.netesta;
+package net.rwx.netbeans.netesta.action;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,27 +23,27 @@ import org.openide.loaders.DataObject;
  *
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
-public class TestOperationFactory {
+public class TestActionFactory {
     
-    private static final TestOperationFactory instance = new TestOperationFactory();
+    private static final TestActionFactory instance = new TestActionFactory();
     
-    private final Map<DataObject, TestOperation> operationCache;
+    private final Map<DataObject, TestAction> operationCache;
 
-    private TestOperationFactory() {
+    private TestActionFactory() {
         operationCache = new HashMap<>();
     }
     
-    static TestOperationFactory get() {
+    public static TestActionFactory get() {
         return instance;
     }
     
-    void initialize(DataObject dataObject) {
+    public void initialize(DataObject dataObject) {
         if( ! operationCache.containsKey(dataObject)) {
-            operationCache.put(dataObject, new TestOperation(dataObject));
+            operationCache.put(dataObject, new TestAction(dataObject));
         }
     }
     
-    TestOperation get(DataObject dataObject) {
+    public TestAction get(DataObject dataObject) {
         initialize(dataObject);
         return operationCache.get(dataObject);
     }

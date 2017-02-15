@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.rwx.netbeans.netesta;
+package net.rwx.netbeans.netesta.action;
 
+import net.rwx.netbeans.netesta.ui.Progressor;
 import java.io.File;
 import org.netbeans.api.java.project.JavaProjectConstants;
 import org.netbeans.api.project.FileOwnerQuery;
@@ -31,13 +32,14 @@ import org.openide.util.lookup.Lookups;
  *
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
-public class TestOperation {
+public class TestAction {
 
     private final Project project;
     private final DataObject dataObject;
     private final ActionProvider actionProvider;
-
-    public TestOperation(DataObject dataObject) {
+    private final Progressor progressor;
+    
+    public TestAction(DataObject dataObject) {
         this.dataObject = dataObject;
         this.project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
         if (project != null) {
@@ -45,6 +47,7 @@ public class TestOperation {
         } else {
             this.actionProvider = null;
         }
+        progressor = new Progressor(dataObject.getPrimaryFile());
     }
 
     public void run() {
@@ -52,6 +55,7 @@ public class TestOperation {
             return;
         }
         waitingForCompilation = false;
+        progressor.close();
         performTestSingleAction();
     }
 
@@ -140,7 +144,8 @@ public class TestOperation {
 
     private boolean waitingForCompilation = false;
     
-    void waitForCompilation() {
+    public void waitForCompilation() {
         waitingForCompilation = true;
+        progressor.start();
     }
 }

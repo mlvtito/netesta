@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.rwx.netbeans.netesta;
+package net.rwx.netbeans.netesta.files;
 
-import java.util.Date;
-import org.netbeans.api.progress.ProgressHandle;
+import net.rwx.netbeans.netesta.action.TestAction;
+import net.rwx.netbeans.netesta.action.TestActionFactory;
 import org.openide.filesystems.FileChangeAdapter;
 import org.openide.filesystems.FileEvent;
 import org.openide.loaders.DataObject;
@@ -29,31 +29,24 @@ import org.openide.util.Exceptions;
  */
 public class SourceChangeListener extends FileChangeAdapter {
 
-    private final TestOperationFactory operationFactory;
+    private final TestActionFactory operationFactory;
 
     public SourceChangeListener() {
-        this.operationFactory = TestOperationFactory.get();
+        this.operationFactory = TestActionFactory.get();
     }
 
     @Override
     public void fileChanged(FileEvent fe) {
-        try (Progressor progress = new Progressor(fe.getFile())) {
+        try {
             DataObject dataObject = DataObject.find(fe.getFile());
-            TestOperation testOperation = operationFactory.get(dataObject);
+            TestAction testOperation = operationFactory.get(dataObject);
 
             if (testOperation.isActionSupportedAndEnabled() && testOperation.hasTestClass()) {
                 if (testOperation.isCompileOnSaveEnabled() && !testOperation.isWaitingForCompilation()) {
-                    System.out.println("#### "+new Date()+" ### SOURCE LISTENER TRIGGERED ### Wait for compilation");
-                    progress.start();
                     testOperation.waitForCompilation();
                 } else if (!testOperation.isCompileOnSaveEnabled()) {
-                    System.out.println("#### "+new Date()+" ### SOURCE LISTENER TRIGGERED ### Launching test");
                     testOperation.run();
-                }else {
-                    System.out.println("#### "+new Date()+" ### SOURCE LISTENER TRIGGERED ### Already waiting");
                 }
-            }else {
-                System.out.println("#### "+new Date()+" ### SOURCE LISTENER TRIGGERED ### Nothing to do not testable");
             }
         } catch (DataObjectNotFoundException ex) {
             Exceptions.printStackTrace(ex);

@@ -15,6 +15,7 @@
  */
 package net.rwx.netbeans.netesta;
 
+import net.rwx.netbeans.netesta.files.SourceChangeListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
@@ -39,8 +40,6 @@ import org.openide.windows.TopComponent;
 public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
 
     private static final String PROPERTY_NAME_OPENED = "opened";
-
-    private final FileChangeListener fileChangeListener = new SourceChangeListener();
 
     public DataObjectOpenAndCloseListener() {
         addChangeListenerOnEveryOpenedTestableSourceCode();
@@ -75,9 +74,8 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
     private void addChangeListenerIfTestableSourceCode(DataObject... dataObjects) {
         for (DataObject dataObject : dataObjects) {
             if (dataObject != null && isTestableSourceCode(dataObject)) {
-                NetestaHandler handler = new NetestaHandler(dataObject);
-                handlers.put(dataObject, handler);
-                handler.init();
+                handlers.put(dataObject, new NetestaHandler(dataObject));
+                handlers.get(dataObject).init();
             }
         }
     }
@@ -85,8 +83,7 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
     private void removeChangeListener(List<DataObject> dataObjects) {
         for (DataObject dataObject : dataObjects) {
             if (dataObject != null) {
-                NetestaHandler handler = handlers.remove(dataObject);
-                handler.release();
+                handlers.remove(dataObject).release();
             }
         }
     }

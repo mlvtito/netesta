@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.rwx.netbeans.netesta;
+package net.rwx.netbeans.netesta.files;
 
-import java.util.Date;
+import net.rwx.netbeans.netesta.action.TestAction;
 import org.openide.filesystems.FileChangeAdapter;
 import org.openide.filesystems.FileEvent;
 
@@ -25,19 +25,16 @@ import org.openide.filesystems.FileEvent;
  */
 public class CompiledFileChangeListener extends FileChangeAdapter {
 
-    private final TestOperation testOperation;
+    private final TestAction testOperation;
 
-    public CompiledFileChangeListener(TestOperation testOperation) {
+    public CompiledFileChangeListener(TestAction testOperation) {
         this.testOperation = testOperation;
     }
 
     @Override
     public void fileChanged(FileEvent fe) {
         if (testOperation.isWaitingForCompilation()) {
-            System.out.println("#### " + new Date() + " ### COMPILED LISTENER TRIGGERED ### Launching test");
             testOperation.run();
-        } else {
-            System.out.println("#### " + new Date() + " ### SOURCE LISTENER TRIGGERED ### Not waiting for compilation");
         }
     }
 }

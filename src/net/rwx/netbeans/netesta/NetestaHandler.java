@@ -15,19 +15,15 @@
  */
 package net.rwx.netbeans.netesta;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.util.concurrent.Executors;
+import net.rwx.netbeans.netesta.files.SourceChangeListener;
+import net.rwx.netbeans.netesta.files.CompiledFileChangeListener;
+import net.rwx.netbeans.netesta.files.CompiledFileObserver;
+import net.rwx.netbeans.netesta.action.TestAction;
+import net.rwx.netbeans.netesta.action.TestActionFactory;
 import org.netbeans.api.java.classpath.ClassPath;
 import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataObject;
-import org.openide.util.Exceptions;
 
 /**
  *
@@ -44,21 +40,19 @@ public class NetestaHandler {
     public NetestaHandler(DataObject dataObject) {
         this.source = dataObject.getPrimaryFile();
         this.compiled = findClassFileFromSourceFile(source);
-        TestOperation testOperation = TestOperationFactory.get().get(dataObject);
+        TestAction testOperation = TestActionFactory.get().get(dataObject);
         FileChangeListener compiledChangeListener = new CompiledFileChangeListener(testOperation);
         observer = new CompiledFileObserver(compiledChangeListener, compiled);
     }
 
     public void init() {
-        System.out.println("### ## ADDING SOURCE LISTENER ON " + source);
         source.addFileChangeListener(sourceChangeListener);
-        System.out.println("### ## STARTING COMPILED OBSERVER ON " + compiled);
         observer.start();
     }
 
     public void release() {
         source.removeFileChangeListener(sourceChangeListener);
-        // observer.stop();
+        observer.stop();
     }
 
     private FileObject findClassFileFromSourceFile(FileObject file) {
