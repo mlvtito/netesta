@@ -82,7 +82,7 @@ public class DataObjectOpenAndCloseListener implements PropertyChangeListener {
 
     private void removeChangeListener(List<DataObject> dataObjects) {
         for (DataObject dataObject : dataObjects) {
-            if (dataObject != null) {
+            if (dataObject != null && handlers.containsKey(dataObject)) {
                 handlers.remove(dataObject).release();
             }
         }
