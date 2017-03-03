@@ -16,13 +16,15 @@
 package net.rwx.netbeans.netesta.files;
 
 import java.io.IOException;
-import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardWatchEventKinds;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
+import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.UUID;
 import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
@@ -38,9 +40,9 @@ public class CompiledFileObserver {
     private final FileChangeListener listener;
     private final FileObject compiledFile;
 
-    private WatchService watchService;
+    private WatchService classWatcher, parentWatcher;
     private RequestProcessor requestProcessor;
-    
+
     public CompiledFileObserver(FileChangeListener listener, FileObject compiledFile) {
         this.listener = listener;
         this.compiledFile = compiledFile;
@@ -48,45 +50,80 @@ public class CompiledFileObserver {
 
     public void start() {
         try {
-            Path pathToMonitor = Paths.get(compiledFile.getParent().getPath());
-            watchService = Paths.get(compiledFile.getParent().getPath()).getFileSystem().newWatchService();
-            requestProcessor = new RequestProcessor("netesta-compiled-observer-" + compiledFile.getName());
-            requestProcessor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        WatchKey key = watchService.take();
-                        while (key != null) {
-                            consumeWatchKey(key);
-                            key = watchService.take();
-                        }
-                    } catch( ClosedWatchServiceException e) {
-                        
-                    } catch (InterruptedException e) {
-                        Exceptions.printStackTrace(e);
-                    }
-                }
-
-                private void consumeWatchKey(WatchKey key) {
-                    for (WatchEvent event : key.pollEvents()) {
-                        Path path = (Path) event.context();
-                        Path compiledPath = Paths.get(compiledFile.getPath()).getFileName();
-                        if (path.compareTo(compiledPath) == 0) {
-                            listener.fileChanged(new FileEvent(compiledFile));
-                        }
-                    }
-                    key.reset();
-                }
-            });
-            pathToMonitor.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
+            requestProcessor = new RequestProcessor("netesta-compiled-observer-" + compiledFile.getName(), 2, true);
+            loadWatchServices();
+            
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
         }
     }
+
+    private void loadWatchServices() throws IOException {
+        Path path = Paths.get(compiledFile.getParent().getPath());
+        classWatcher = loadWatchService(path, ENTRY_MODIFY, getRunnableToWatchCompiledClassFile());
+        parentWatcher = loadWatchService(path.getParent(), ENTRY_DELETE, getRunnableToWatchParentDirectory());
+    }
+
+    private WatchService loadWatchService(Path path, Kind<?> event, WatchKeyConsumer monitor) throws IOException {
+        WatchService watcher = path.getFileSystem().newWatchService();
+        monitor.setWatchService(watcher);
+        requestProcessor.execute(monitor);
+        path.register(watcher, event);
+        return watcher;
+    }
+    
+    private WatchKeyConsumer getRunnableToWatchCompiledClassFile() {
+        return new WatchKeyConsumer() {
+            @Override
+            public void consumeWatchKey(WatchKey key) {
+                String uuid = UUID.randomUUID().toString();
+                for (WatchEvent event : key.pollEvents()) {
+                    System.out.println("#### CLASS #####" + uuid + "######## " + event.kind() + " ############### " + (Path) event.context());
+                    Path path = (Path) event.context();
+                    Path compiledPath = Paths.get(compiledFile.getPath()).getFileName();
+                    if (path.compareTo(compiledPath) == 0) {
+                        listener.fileChanged(new FileEvent(compiledFile));
+                    }
+                }
+                key.reset();
+            }
+        };
+    }
+
+    private WatchKeyConsumer getRunnableToWatchParentDirectory() {
+        return new WatchKeyConsumer() {
+            @Override
+            public void consumeWatchKey(WatchKey key) {
+                String uuid = UUID.randomUUID().toString();
+                for (WatchEvent event : key.pollEvents()) {
+                    System.out.println("#### PARENT #####" + uuid + "######## " + event.kind() + " ############### " + (Path) event.context());
+                     Path path = (Path) event.context();
+                     Path expectedPath = Paths.get(compiledFile.getPath()).getParent().getFileName();
+                     if (path.compareTo(expectedPath) == 0) {
+                         System.out.println("#################### SHOULD RELOAD WATCHERS");
+                         try {
+                         closeWatchers();
+                         // wait directory to exist. What happen if build failed ?
+//                         loadWatchServices();
+                         }catch(IOException ioe) {
+                             throw new RuntimeException(ioe);
+                         }
+                    }
+                }
+                key.reset();
+            }
+        };
+    }
+
+    private void closeWatchers() throws IOException {
+            classWatcher.close();
+            parentWatcher.close();
+    }
     
     public void stop() {
         try {
-            watchService.close();
+            classWatcher.close();
+            parentWatcher.close();
             requestProcessor.shutdownNow();
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
