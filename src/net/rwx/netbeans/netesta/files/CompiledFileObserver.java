@@ -16,8 +16,10 @@
 package net.rwx.netbeans.netesta.files;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
@@ -25,6 +27,8 @@ import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.UUID;
+import org.netbeans.api.project.FileOwnerQuery;
+import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
@@ -42,17 +46,20 @@ public class CompiledFileObserver {
 
     private WatchService classWatcher, parentWatcher;
     private RequestProcessor requestProcessor;
+    private Project project;
 
     public CompiledFileObserver(FileChangeListener listener, FileObject compiledFile) {
         this.listener = listener;
         this.compiledFile = compiledFile;
+        this.project = FileOwnerQuery.getOwner(compiledFile);
+        System.out.println("############### " + project.getProjectDirectory());
     }
 
     public void start() {
         try {
             requestProcessor = new RequestProcessor("netesta-compiled-observer-" + compiledFile.getName(), 2, true);
             loadWatchServices();
-            
+
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
         }
@@ -60,18 +67,29 @@ public class CompiledFileObserver {
 
     private void loadWatchServices() throws IOException {
         Path path = Paths.get(compiledFile.getParent().getPath());
-        classWatcher = loadWatchService(path, ENTRY_MODIFY, getRunnableToWatchCompiledClassFile());
-        parentWatcher = loadWatchService(path.getParent(), ENTRY_DELETE, getRunnableToWatchParentDirectory());
+        classWatcher = loadWatchService(path, getRunnableToWatchCompiledClassFile(), ENTRY_MODIFY);
+
+        parentWatcher = loadWatchService(path.getParent(), getRunnableToWatchParentDirectory(), ENTRY_DELETE, ENTRY_CREATE);
+        loadWatchServiceForDirectoryTree(path.getParent().getParent());
     }
 
-    private WatchService loadWatchService(Path path, Kind<?> event, WatchKeyConsumer monitor) throws IOException {
-        WatchService watcher = path.getFileSystem().newWatchService();
+    private void loadWatchServiceForDirectoryTree(Path path) throws IOException {
+        System.out.println("### Should I set watcher on path " + path + " for project " + project.getProjectDirectory().getPath());
+        if (path.toString().startsWith(project.getProjectDirectory().getPath())) {
+            System.out.println("Setting watcher !!!!!!!");
+            path.register(parentWatcher, ENTRY_DELETE, ENTRY_CREATE);
+            loadWatchServiceForDirectoryTree(path.getParent());
+        }
+    }
+
+    private WatchService loadWatchService(Path path, WatchKeyConsumer monitor, Kind<?>... events) throws IOException {
+        WatchService watcher = FileSystems.getDefault().newWatchService();
         monitor.setWatchService(watcher);
         requestProcessor.execute(monitor);
-        path.register(watcher, event);
+        path.register(watcher, events);
         return watcher;
     }
-    
+
     private WatchKeyConsumer getRunnableToWatchCompiledClassFile() {
         return new WatchKeyConsumer() {
             @Override
@@ -96,18 +114,19 @@ public class CompiledFileObserver {
             public void consumeWatchKey(WatchKey key) {
                 String uuid = UUID.randomUUID().toString();
                 for (WatchEvent event : key.pollEvents()) {
-                    System.out.println("#### PARENT #####" + uuid + "######## " + event.kind() + " ############### " + (Path) event.context());
-                     Path path = (Path) event.context();
-                     Path expectedPath = Paths.get(compiledFile.getPath()).getParent().getFileName();
-                     if (path.compareTo(expectedPath) == 0) {
-                         System.out.println("#################### SHOULD RELOAD WATCHERS");
-                         try {
-                         closeWatchers();
-                         // wait directory to exist. What happen if build failed ?
-//                         loadWatchServices();
-                         }catch(IOException ioe) {
-                             throw new RuntimeException(ioe);
-                         }
+                    try {
+                        Path eventPath = ((Path)key.watchable()).resolve(((Path)event.context()));
+                        System.out.println("#### PARENT #####" + uuid + "######## " + event.kind() + " ############### " + eventPath.toString() + " ## " + compiledFile.getPath());
+                        if (event.kind() == ENTRY_DELETE) {
+//                            classWatcher.close();
+                        } else if (event.kind() == ENTRY_CREATE) {
+                            if (compiledFile.getPath().startsWith(eventPath.toString())) {
+                                System.out.println("#### PARENT ##### Resetting watcher " + eventPath);
+                                eventPath.register(parentWatcher, ENTRY_DELETE, ENTRY_CREATE);
+                            }
+                        }
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
                     }
                 }
                 key.reset();
@@ -116,10 +135,10 @@ public class CompiledFileObserver {
     }
 
     private void closeWatchers() throws IOException {
-            classWatcher.close();
-            parentWatcher.close();
+        classWatcher.close();
+        parentWatcher.close();
     }
-    
+
     public void stop() {
         try {
             classWatcher.close();
@@ -128,5 +147,16 @@ public class CompiledFileObserver {
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
         }
+    }
+
+    private boolean isParentOf(Path parent, Path child) {
+        Path iteratePath = child.getParent();
+        while (iteratePath != null) {
+            if (parent.toString().equals(iteratePath.toString())) {
+                return true;
+            }
+            iteratePath = iteratePath.getParent();
+        }
+        return false;
     }
 }
