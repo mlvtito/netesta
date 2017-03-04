@@ -15,6 +15,7 @@
  */
 package net.rwx.netbeans.netesta.files;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -26,7 +27,6 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.util.UUID;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileChangeListener;
@@ -44,7 +44,7 @@ public class CompiledFileObserver {
     private final FileChangeListener listener;
     private final FileObject compiledFile;
 
-    private WatchService classWatcher, parentWatcher;
+    private WatchService classWatcher, directoryTreeWatcher;
     private RequestProcessor requestProcessor;
     private Project project;
 
@@ -52,7 +52,6 @@ public class CompiledFileObserver {
         this.listener = listener;
         this.compiledFile = compiledFile;
         this.project = FileOwnerQuery.getOwner(compiledFile);
-        System.out.println("############### " + project.getProjectDirectory());
     }
 
     public void start() {
@@ -66,18 +65,16 @@ public class CompiledFileObserver {
     }
 
     private void loadWatchServices() throws IOException {
-        Path path = Paths.get(compiledFile.getParent().getPath());
+        Path path = Paths.get(compiledFile.getPath()).getParent();
         classWatcher = loadWatchService(path, getRunnableToWatchCompiledClassFile(), ENTRY_MODIFY);
 
-        parentWatcher = loadWatchService(path.getParent(), getRunnableToWatchParentDirectory(), ENTRY_DELETE, ENTRY_CREATE);
+        directoryTreeWatcher = loadWatchService(path.getParent(), getRunnableToWatchParentDirectory(), ENTRY_CREATE);
         loadWatchServiceForDirectoryTree(path.getParent().getParent());
     }
 
     private void loadWatchServiceForDirectoryTree(Path path) throws IOException {
-        System.out.println("### Should I set watcher on path " + path + " for project " + project.getProjectDirectory().getPath());
-        if (path.toString().startsWith(project.getProjectDirectory().getPath())) {
-            System.out.println("Setting watcher !!!!!!!");
-            path.register(parentWatcher, ENTRY_DELETE, ENTRY_CREATE);
+        if (path.startsWith(project.getProjectDirectory().getPath())) {
+            path.register(directoryTreeWatcher, ENTRY_CREATE);
             loadWatchServiceForDirectoryTree(path.getParent());
         }
     }
@@ -93,17 +90,11 @@ public class CompiledFileObserver {
     private WatchKeyConsumer getRunnableToWatchCompiledClassFile() {
         return new WatchKeyConsumer() {
             @Override
-            public void consumeWatchKey(WatchKey key) {
-                String uuid = UUID.randomUUID().toString();
-                for (WatchEvent event : key.pollEvents()) {
-                    System.out.println("#### CLASS #####" + uuid + "######## " + event.kind() + " ############### " + (Path) event.context());
-                    Path path = (Path) event.context();
-                    Path compiledPath = Paths.get(compiledFile.getPath()).getFileName();
-                    if (path.compareTo(compiledPath) == 0) {
-                        listener.fileChanged(new FileEvent(compiledFile));
-                    }
+            public void consumeWatchKey(WatchKey key, WatchEvent event) {
+                Path eventPath = ((Path) key.watchable()).resolve(((Path) event.context()));
+                if (eventPath.toString().equals(compiledFile.getPath())) {
+                    listener.fileChanged(new FileEvent(compiledFile));
                 }
-                key.reset();
             }
         };
     }
@@ -111,52 +102,43 @@ public class CompiledFileObserver {
     private WatchKeyConsumer getRunnableToWatchParentDirectory() {
         return new WatchKeyConsumer() {
             @Override
-            public void consumeWatchKey(WatchKey key) {
-                String uuid = UUID.randomUUID().toString();
-                for (WatchEvent event : key.pollEvents()) {
-                    try {
-                        Path eventPath = ((Path)key.watchable()).resolve(((Path)event.context()));
-                        System.out.println("#### PARENT #####" + uuid + "######## " + event.kind() + " ############### " + eventPath.toString() + " ## " + compiledFile.getPath());
-                        if (event.kind() == ENTRY_DELETE) {
-//                            classWatcher.close();
-                        } else if (event.kind() == ENTRY_CREATE) {
-                            if (compiledFile.getPath().startsWith(eventPath.toString())) {
-                                System.out.println("#### PARENT ##### Resetting watcher " + eventPath);
-                                eventPath.register(parentWatcher, ENTRY_DELETE, ENTRY_CREATE);
-                            }
-                        }
-                    } catch (IOException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
-                key.reset();
+            public void consumeWatchKey(WatchKey key, WatchEvent event) throws IOException {
+                Path eventPath = ((Path) key.watchable()).resolve(((Path) event.context()));
+                restoreDirectoryTreeWatcherForPath(eventPath);
             }
         };
     }
 
-    private void closeWatchers() throws IOException {
-        classWatcher.close();
-        parentWatcher.close();
+    private void restoreDirectoryTreeWatcherForChildrenPath(Path path) throws IOException {
+        if( path.toFile().exists() ) {
+            for (File child : path.toFile().listFiles()) {
+                Path childPath = Paths.get(child.getPath());
+                restoreDirectoryTreeWatcherForPath(childPath);
+            }
+        }
+    }
+
+    private void restoreDirectoryTreeWatcherForPath(Path path) throws IOException {
+        Path compiledFileDir = Paths.get(compiledFile.getPath()).getParent();
+        if (compiledFileDir.toString().startsWith(path.toString())) {
+            if (!compiledFileDir.toString().equals(path.toString())) {
+                if( path.toFile().exists() ) {
+                    path.register(directoryTreeWatcher, ENTRY_CREATE);
+                    restoreDirectoryTreeWatcherForChildrenPath(path);
+                }
+            } else {
+                compiledFileDir.register(classWatcher, ENTRY_MODIFY);
+            }
+        }
     }
 
     public void stop() {
         try {
             classWatcher.close();
-            parentWatcher.close();
+            directoryTreeWatcher.close();
             requestProcessor.shutdownNow();
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
         }
-    }
-
-    private boolean isParentOf(Path parent, Path child) {
-        Path iteratePath = child.getParent();
-        while (iteratePath != null) {
-            if (parent.toString().equals(iteratePath.toString())) {
-                return true;
-            }
-            iteratePath = iteratePath.getParent();
-        }
-        return false;
     }
 }
