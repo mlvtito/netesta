@@ -17,8 +17,12 @@ package net.rwx.netbeans.netesta.files;
 
 import net.rwx.netbeans.netesta.action.TestAction;
 import net.rwx.netbeans.netesta.action.TestActionFactory;
+import org.netbeans.api.project.FileOwnerQuery;
+import org.netbeans.api.project.Project;
+import org.netbeans.spi.project.AuxiliaryProperties;
 import org.openide.filesystems.FileChangeAdapter;
 import org.openide.filesystems.FileEvent;
+import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.util.Exceptions;
@@ -29,27 +33,35 @@ import org.openide.util.Exceptions;
  */
 public class SourceChangeListener extends FileChangeAdapter {
 
-    private final TestActionFactory operationFactory;
-
-    public SourceChangeListener() {
-        this.operationFactory = TestActionFactory.get();
-    }
-
     @Override
     public void fileChanged(FileEvent fe) {
         try {
             DataObject dataObject = DataObject.find(fe.getFile());
-            TestAction testOperation = operationFactory.get(dataObject);
+            TestAction testAction = TestActionFactory.get().get(dataObject);
 
-            if (testOperation.isActionSupportedAndEnabled() && testOperation.hasTestClass()) {
-                if (testOperation.isCompileOnSaveEnabled() && !testOperation.isWaitingForCompilation()) {
-                    testOperation.waitForCompilation();
-                } else if (!testOperation.isCompileOnSaveEnabled()) {
-                    testOperation.run();
+            if (testAction.supportedAndEnabled() && testAction.hasNeededSourceTestClass()) {
+                if (isCompileOnSaveEnabled(fe.getFile()) && !testAction.isWaitingForCompilation()) {
+                    testAction.waitForCompilation();
+                } else if (!isCompileOnSaveEnabled(fe.getFile())) {
+                    testAction.run();
                 }
             }
         } catch (DataObjectNotFoundException ex) {
             Exceptions.printStackTrace(ex);
         }
+    }
+    
+    private boolean isCompileOnSaveEnabled(FileObject fileObject) {
+        Project project = FileOwnerQuery.getOwner(fileObject);
+        AuxiliaryProperties auxprops = project.getLookup().lookup(AuxiliaryProperties.class);
+        if (auxprops == null) {
+            // Cannot use ProjectUtils.getPreferences due to compatibility.
+            return false;
+        }
+        String cos = auxprops.get("netbeans.compile.on.save", true);
+        if (cos == null) {
+            cos = "all";
+        }
+        return !"none".equalsIgnoreCase(cos);
     }
 }

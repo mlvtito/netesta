@@ -37,7 +37,7 @@ public class TestActionFactory {
         return instance;
     }
     
-    public void initialize(DataObject dataObject) {
+    private void initialize(DataObject dataObject) {
         if( ! operationCache.containsKey(dataObject)) {
             operationCache.put(dataObject, new TestAction(dataObject));
         }

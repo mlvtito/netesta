@@ -35,14 +35,10 @@ public class NetestaHandler {
     private final CompiledFileObserver observer;
 
     private final FileObject source;
-    private final FileObject compiled;
 
     public NetestaHandler(DataObject dataObject) {
         this.source = dataObject.getPrimaryFile();
-        this.compiled = findClassFileFromSourceFile(source);
-        TestAction testOperation = TestActionFactory.get().get(dataObject);
-        FileChangeListener compiledChangeListener = new CompiledFileChangeListener(testOperation);
-        observer = new CompiledFileObserver(compiledChangeListener, compiled);
+        observer = new CompiledFileObserver(dataObject);
     }
 
     public void init() {
@@ -53,12 +49,5 @@ public class NetestaHandler {
     public void release() {
         source.removeFileChangeListener(sourceChangeListener);
         observer.stop();
-    }
-
-    private FileObject findClassFileFromSourceFile(FileObject file) {
-        ClassPath sourceClassPath = ClassPath.getClassPath(file, ClassPath.SOURCE);
-        ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
-        return cp.findResource(
-                sourceClassPath.getResourceName(file, '/', false) + ".class");
     }
 }

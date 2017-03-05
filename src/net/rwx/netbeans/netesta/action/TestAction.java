@@ -23,7 +23,6 @@ import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
-import org.netbeans.spi.project.AuxiliaryProperties;
 import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.util.lookup.Lookups;
@@ -59,24 +58,11 @@ public class TestAction {
         performTestSingleAction();
     }
 
-    public boolean isCompileOnSaveEnabled() {
-        AuxiliaryProperties auxprops = project.getLookup().lookup(AuxiliaryProperties.class);
-        if (auxprops == null) {
-            // Cannot use ProjectUtils.getPreferences due to compatibility.
-            return false;
-        }
-        String cos = auxprops.get("netbeans.compile.on.save", true);
-        if (cos == null) {
-            cos = "all";
-        }
-        return !"none".equalsIgnoreCase(cos);
-    }
-
     public boolean isWaitingForCompilation() {
         return waitingForCompilation;
     }
     
-    public boolean isActionSupportedAndEnabled() {
+    public boolean supportedAndEnabled() {
         String actionCode = ActionProvider.COMMAND_TEST_SINGLE;
         return isTestFileActionIn(actionProvider.getSupportedActions())
                 && actionProvider.isActionEnabled(actionCode, Lookups.fixed(dataObject));
@@ -98,7 +84,7 @@ public class TestAction {
         return false;
     }
 
-    public boolean hasTestClass() {
+    public boolean hasNeededSourceTestClass() {
         SourceGroup group = getSourceGroup();
         if (group.getName().contains("Test")) {
             return true;

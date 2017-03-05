@@ -21,17 +21,20 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import net.rwx.netbeans.netesta.action.TestAction;
+import net.rwx.netbeans.netesta.action.TestActionFactory;
+import org.netbeans.api.java.classpath.ClassPath;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
+import org.openide.loaders.DataObject;
 import org.openide.util.Exceptions;
 import org.openide.util.RequestProcessor;
 
@@ -48,35 +51,33 @@ public class CompiledFileObserver {
     private RequestProcessor requestProcessor;
     private Project project;
 
-    public CompiledFileObserver(FileChangeListener listener, FileObject compiledFile) {
-        this.listener = listener;
-        this.compiledFile = compiledFile;
+    public CompiledFileObserver(DataObject sourceCode) {
+        TestAction testOperation = TestActionFactory.get().get(sourceCode);
+        this.listener = new CompiledFileChangeListener(testOperation);
+        this.compiledFile = findClassFileFromSourceFile(sourceCode.getPrimaryFile());
         this.project = FileOwnerQuery.getOwner(compiledFile);
+    }
+    
+    private FileObject findClassFileFromSourceFile(FileObject file) {
+        ClassPath sourceClassPath = ClassPath.getClassPath(file, ClassPath.SOURCE);
+        ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
+        return cp.findResource(sourceClassPath.getResourceName(file, '/', false) + ".class");
     }
 
     public void start() {
         try {
             requestProcessor = new RequestProcessor("netesta-compiled-observer-" + compiledFile.getName(), 2, true);
             loadWatchServices();
-
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
         }
     }
 
     private void loadWatchServices() throws IOException {
-        Path path = Paths.get(compiledFile.getPath()).getParent();
-        classWatcher = loadWatchService(path, getRunnableToWatchCompiledClassFile(), ENTRY_MODIFY);
-
-        directoryTreeWatcher = loadWatchService(path.getParent(), getRunnableToWatchParentDirectory(), ENTRY_CREATE);
-        loadWatchServiceForDirectoryTree(path.getParent().getParent());
-    }
-
-    private void loadWatchServiceForDirectoryTree(Path path) throws IOException {
-        if (path.startsWith(project.getProjectDirectory().getPath())) {
-            path.register(directoryTreeWatcher, ENTRY_CREATE);
-            loadWatchServiceForDirectoryTree(path.getParent());
-        }
+        Path classDir = Paths.get(compiledFile.getPath()).getParent();
+        classWatcher = loadWatchService(classDir, actionForCompiledClassWatcher(), ENTRY_MODIFY);
+        directoryTreeWatcher = loadWatchService(classDir.getParent(), actionForDirectoryTreeWatcher(), ENTRY_CREATE);
+        restoreDirectoryTreeWatcherForPath(Paths.get(project.getProjectDirectory().getPath()));
     }
 
     private WatchService loadWatchService(Path path, WatchKeyConsumer monitor, Kind<?>... events) throws IOException {
@@ -87,7 +88,7 @@ public class CompiledFileObserver {
         return watcher;
     }
 
-    private WatchKeyConsumer getRunnableToWatchCompiledClassFile() {
+    private WatchKeyConsumer actionForCompiledClassWatcher() {
         return new WatchKeyConsumer() {
             @Override
             public void consumeWatchKey(WatchKey key, WatchEvent event) {
@@ -99,7 +100,7 @@ public class CompiledFileObserver {
         };
     }
 
-    private WatchKeyConsumer getRunnableToWatchParentDirectory() {
+    private WatchKeyConsumer actionForDirectoryTreeWatcher() {
         return new WatchKeyConsumer() {
             @Override
             public void consumeWatchKey(WatchKey key, WatchEvent event) throws IOException {
@@ -119,15 +120,15 @@ public class CompiledFileObserver {
     }
 
     private void restoreDirectoryTreeWatcherForPath(Path path) throws IOException {
-        Path compiledFileDir = Paths.get(compiledFile.getPath()).getParent();
-        if (compiledFileDir.toString().startsWith(path.toString())) {
-            if (!compiledFileDir.toString().equals(path.toString())) {
+        Path classDir = Paths.get(compiledFile.getPath()).getParent();
+        if (classDir.startsWith(path)) {
+            if (!classDir.equals(path)) {
                 if( path.toFile().exists() ) {
                     path.register(directoryTreeWatcher, ENTRY_CREATE);
                     restoreDirectoryTreeWatcherForChildrenPath(path);
                 }
             } else {
-                compiledFileDir.register(classWatcher, ENTRY_MODIFY);
+                classDir.register(classWatcher, ENTRY_MODIFY);
             }
         }
     }

@@ -23,7 +23,8 @@ import java.nio.file.WatchService;
 import org.openide.util.Exceptions;
 
 /**
- *
+ * A Java NIO watcher abstract consumer.
+ * 
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
 public abstract class WatchKeyConsumer implements Runnable {
@@ -50,7 +51,6 @@ public abstract class WatchKeyConsumer implements Runnable {
                 key = watchService.take();
             }
         } catch (ClosedWatchServiceException e) {
-//            Exceptions.printStackTrace(e);
         } catch (InterruptedException e) {
             Exceptions.printStackTrace(e);
         }
