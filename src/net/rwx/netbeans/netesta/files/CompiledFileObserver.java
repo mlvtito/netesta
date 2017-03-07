@@ -49,7 +49,7 @@ public class CompiledFileObserver {
 
     private WatchService classWatcher, directoryTreeWatcher;
     private RequestProcessor requestProcessor;
-    private Project project;
+    private final Project project;
 
     public CompiledFileObserver(DataObject sourceCode) {
         TestAction testOperation = TestActionFactory.get().get(sourceCode);
@@ -57,7 +57,7 @@ public class CompiledFileObserver {
         this.compiledFile = findClassFileFromSourceFile(sourceCode.getPrimaryFile());
         this.project = FileOwnerQuery.getOwner(compiledFile);
     }
-    
+
     private FileObject findClassFileFromSourceFile(FileObject file) {
         ClassPath sourceClassPath = ClassPath.getClassPath(file, ClassPath.SOURCE);
         ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
@@ -93,7 +93,8 @@ public class CompiledFileObserver {
             @Override
             public void consumeWatchKey(WatchKey key, WatchEvent event) {
                 Path eventPath = ((Path) key.watchable()).resolve(((Path) event.context()));
-                if (eventPath.toString().equals(compiledFile.getPath())) {
+                Path compiledPath = Paths.get(compiledFile.getPath());
+                if (eventPath.equals(compiledPath)) {
                     listener.fileChanged(new FileEvent(compiledFile));
                 }
             }
@@ -111,7 +112,7 @@ public class CompiledFileObserver {
     }
 
     private void restoreDirectoryTreeWatcherForChildrenPath(Path path) throws IOException {
-        if( path.toFile().exists() ) {
+        if (path.toFile().exists()) {
             for (File child : path.toFile().listFiles()) {
                 Path childPath = Paths.get(child.getPath());
                 restoreDirectoryTreeWatcherForPath(childPath);
@@ -123,7 +124,7 @@ public class CompiledFileObserver {
         Path classDir = Paths.get(compiledFile.getPath()).getParent();
         if (classDir.startsWith(path)) {
             if (!classDir.equals(path)) {
-                if( path.toFile().exists() ) {
+                if (path.toFile().exists()) {
                     path.register(directoryTreeWatcher, ENTRY_CREATE);
                     restoreDirectoryTreeWatcherForChildrenPath(path);
                 }
