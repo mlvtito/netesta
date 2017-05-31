@@ -23,7 +23,6 @@ import java.nio.file.Paths;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
-import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import net.rwx.netbeans.netesta.action.TestAction;
@@ -34,6 +33,7 @@ import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.util.Exceptions;
 import org.openide.util.RequestProcessor;
@@ -45,7 +45,7 @@ import org.openide.util.RequestProcessor;
 public class CompiledFileObserver {
 
     private final FileChangeListener listener;
-    private final FileObject compiledFile;
+    private final File compiledFile;
 
     private WatchService classWatcher, directoryTreeWatcher;
     private RequestProcessor requestProcessor;
@@ -55,13 +55,14 @@ public class CompiledFileObserver {
         TestAction testOperation = TestActionFactory.get().get(sourceCode);
         this.listener = new CompiledFileChangeListener(testOperation);
         this.compiledFile = findClassFileFromSourceFile(sourceCode.getPrimaryFile());
-        this.project = FileOwnerQuery.getOwner(compiledFile);
+        this.project = FileOwnerQuery.getOwner(sourceCode.getPrimaryFile());
     }
 
-    private FileObject findClassFileFromSourceFile(FileObject file) {
+    private File findClassFileFromSourceFile(FileObject file) {
         ClassPath sourceClassPath = ClassPath.getClassPath(file, ClassPath.SOURCE);
         ClassPath cp = ClassPath.getClassPath(file, ClassPath.EXECUTE);
-        return cp.findResource(sourceClassPath.getResourceName(file, '/', false) + ".class");
+        String classFile = cp.entries().get(0).getURL().getPath() + sourceClassPath.getResourceName(file, '/', false) + ".class";
+        return new File(classFile);
     }
 
     public void start() {
@@ -74,17 +75,15 @@ public class CompiledFileObserver {
     }
 
     private void loadWatchServices() throws IOException {
-        Path classDir = Paths.get(compiledFile.getPath()).getParent();
-        classWatcher = loadWatchService(classDir, actionForCompiledClassWatcher(), ENTRY_MODIFY);
-        directoryTreeWatcher = loadWatchService(classDir.getParent(), actionForDirectoryTreeWatcher(), ENTRY_CREATE);
+        classWatcher = buildWatchService(actionForCompiledClassWatcher());
+        directoryTreeWatcher = buildWatchService(actionForDirectoryTreeWatcher());
         restoreDirectoryTreeWatcherForPath(Paths.get(project.getProjectDirectory().getPath()));
     }
 
-    private WatchService loadWatchService(Path path, WatchKeyConsumer monitor, Kind<?>... events) throws IOException {
+    private WatchService buildWatchService(WatchKeyConsumer monitor) throws IOException {
         WatchService watcher = FileSystems.getDefault().newWatchService();
         monitor.setWatchService(watcher);
         requestProcessor.execute(monitor);
-        path.register(watcher, events);
         return watcher;
     }
 
@@ -95,7 +94,7 @@ public class CompiledFileObserver {
                 Path eventPath = ((Path) key.watchable()).resolve(((Path) event.context()));
                 Path compiledPath = Paths.get(compiledFile.getPath());
                 if (eventPath.equals(compiledPath)) {
-                    listener.fileChanged(new FileEvent(compiledFile));
+                    listener.fileChanged(new FileEvent(FileUtil.toFileObject(compiledFile)));
                 }
             }
         };
