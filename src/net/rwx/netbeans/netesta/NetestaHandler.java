@@ -16,11 +16,7 @@
 package net.rwx.netbeans.netesta;
 
 import net.rwx.netbeans.netesta.files.SourceChangeListener;
-import net.rwx.netbeans.netesta.files.CompiledFileChangeListener;
 import net.rwx.netbeans.netesta.files.CompiledFileObserver;
-import net.rwx.netbeans.netesta.action.TestAction;
-import net.rwx.netbeans.netesta.action.TestActionFactory;
-import org.netbeans.api.java.classpath.ClassPath;
 import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataObject;
