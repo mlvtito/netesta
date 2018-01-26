@@ -35,6 +35,5 @@ public class OnStartNetesta implements Runnable {
                 );
             }
         });
-
     }
 }

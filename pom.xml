@@ -9,7 +9,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <netbeans.version>RELEASE82</netbeans.version>
-        <netbeans.installation>/logiciels/netbeans/netbeans-8.2</netbeans.installation>
     </properties>
     
     <dependencies>

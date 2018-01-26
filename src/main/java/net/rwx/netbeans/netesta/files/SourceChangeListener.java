@@ -15,6 +15,8 @@
  */
 package net.rwx.netbeans.netesta.files;
 
+import net.rwx.netbeans.netesta.GlobalActivation;
+import net.rwx.netbeans.netesta.OnStartNetesta;
 import net.rwx.netbeans.netesta.action.TestAction;
 import net.rwx.netbeans.netesta.action.TestActionFactory;
 import org.netbeans.api.project.FileOwnerQuery;
@@ -36,21 +38,23 @@ public class SourceChangeListener extends FileChangeAdapter {
     @Override
     public void fileChanged(FileEvent fe) {
         try {
-            DataObject dataObject = DataObject.find(fe.getFile());
-            TestAction testAction = TestActionFactory.get().get(dataObject);
+            if (GlobalActivation.isActivated()) {
+                DataObject dataObject = DataObject.find(fe.getFile());
+                TestAction testAction = TestActionFactory.get().get(dataObject);
 
-            if (testAction.supportedAndEnabled() && testAction.hasNeededSourceTestClass()) {
-                if (isCompileOnSaveEnabled(fe.getFile()) && !testAction.isWaitingForCompilation()) {
-                    testAction.waitForCompilation();
-                } else if (!isCompileOnSaveEnabled(fe.getFile())) {
-                    testAction.run();
+                if (testAction.supportedAndEnabled() && testAction.hasNeededSourceTestClass()) {
+                    if (isCompileOnSaveEnabled(fe.getFile()) && !testAction.isWaitingForCompilation()) {
+                        testAction.waitForCompilation();
+                    } else if (!isCompileOnSaveEnabled(fe.getFile())) {
+                        testAction.run();
+                    }
                 }
             }
         } catch (DataObjectNotFoundException ex) {
             Exceptions.printStackTrace(ex);
         }
     }
-    
+
     private boolean isCompileOnSaveEnabled(FileObject fileObject) {
         Project project = FileOwnerQuery.getOwner(fileObject);
         AuxiliaryProperties auxprops = project.getLookup().lookup(AuxiliaryProperties.class);
