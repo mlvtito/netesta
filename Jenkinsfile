@@ -24,7 +24,7 @@ pipeline {
                 }
                 always {
                     junit '**/target/surefire-reports/TEST-*.xml'
-//                        step( [ $class: 'JacocoPublisher', execPattern: 'lib/target/jacoco.exec' ] )
+//                  step( [ $class: 'JacocoPublisher', execPattern: 'lib/target/jacoco.exec' ] )
                 }
             }
         }
