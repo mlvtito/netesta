@@ -20,7 +20,7 @@ pipeline {
             }
             post {
                 success {
-                    archive "**/lib/target/*.jar"
+                    archive "**/target/*.nbm"
                 }
                 always {
                     junit '**/target/surefire-reports/TEST-*.xml'
