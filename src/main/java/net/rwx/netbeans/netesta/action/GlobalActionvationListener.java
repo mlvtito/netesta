@@ -7,29 +7,28 @@ package net.rwx.netbeans.netesta.action;
 
 import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
-import javax.swing.JMenuItem;
 import net.rwx.netbeans.netesta.GlobalActivation;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
 import org.openide.awt.ActionRegistration;
+import org.openide.util.NbBundle;
 
 /**
  *
  * @author Arnaud Fonce <arnaud.fonce@r-w-x.net>
  */
 @ActionID(category = "File", id = "net.rwx.netbeans.netesta.GlobalActionvationListener")
-@ActionRegistration(displayName = "disable_netesta", menuText = "Disable Netesta")
+@ActionRegistration(displayName = "#netesta.disable")
 @ActionReference(path = "UI/ToolActions/Files", position = 0)
 public class GlobalActionvationListener extends AbstractAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        JMenuItem menuItem = (JMenuItem)e.getSource();
-        if( menuItem.getText().equals("Disable Netesta") ) {
-            putValue("menuText", "Enable Netesta");
+        if (GlobalActivation.isActivated()) {
+            putValue("menuText", NbBundle.getMessage(GlobalActionvationListener.class, "netesta.enable"));
             GlobalActivation.desactivate();
-        }else {
-            putValue("menuText", "Disable Netesta");
+        } else {
+            putValue("menuText", NbBundle.getMessage(GlobalActionvationListener.class, "netesta.disable"));
             GlobalActivation.activate();
         }
     }
