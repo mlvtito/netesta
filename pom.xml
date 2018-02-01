@@ -7,10 +7,17 @@
     <packaging>nbm</packaging>
     
     <properties>
+        <keystore>${project.build.outputDirectory}/keystore</keystore>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <netbeans.version>RELEASE82</netbeans.version>
     </properties>
     
+    <scm>
+        <connection>https://backend.r-w-x.net/scm/git/netbeans/netesta.git</connection>
+        <url>https://backend.r-w-x.net/scm/git/netbeans/netesta.git</url>
+        <developerConnection>https://backend.r-w-x.net/scm/git/netbeans/netesta.git</developerConnection>
+    </scm>
+
     <dependencies>
         <dependency>
             <groupId>org.netbeans.api</groupId>
@@ -96,6 +103,9 @@
                 <extensions>true</extensions>
                 <configuration>
                     <useOSGiDependencies>true</useOSGiDependencies>
+                    <keystore>${keystore}</keystore>
+                    <keystorealias>${project.artifactId}</keystorealias>
+                    <keystorepassword>${project.artifactId}</keystorepassword>
                 </configuration>
             </plugin>
             <plugin>
@@ -113,6 +123,31 @@
                 <version>2.6</version>
                 <configuration>
                     <useDefaultManifestFile>true</useDefaultManifestFile>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>keytool-maven-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generateKeyPair</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <keystore>${keystore}</keystore>
+                    <storepass>${project.artifactId}</storepass>
+                    <keypass>${project.artifactId}</keypass>
+                    <alias>${project.artifactId}</alias>
+                    <dname>cn=${project.scm.developerConnection}, ou=None, L=Des Moines, ST=Iowa, o=${project.artifactId}, c=US</dname>
+                    <sigalg>SHA1withDSA</sigalg>
+                    <ext />
+                    <validity>2000</validity>
+                    <keyalg>DSA</keyalg>
+                    <keysize>1024</keysize>
                 </configuration>
             </plugin>
         </plugins>
