@@ -3,8 +3,13 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.r-w-x.netbeans</groupId>
     <artifactId>netesta</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.3.0</version>
     <packaging>nbm</packaging>
+    
+    <name>Netesta Continuous Testing</name>
+    <organization>
+        <name>R-w-X</name>
+    </organization>
     
     <properties>
         <keystore>${project.build.outputDirectory}/keystore</keystore>
@@ -18,6 +23,15 @@
         <developerConnection>https://backend.r-w-x.net/scm/git/netbeans/netesta.git</developerConnection>
     </scm>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+            <comments>A business-friendly OSS license</comments>
+        </license>
+    </licenses>
+    
     <dependencies>
         <dependency>
             <groupId>org.netbeans.api</groupId>
@@ -106,6 +120,8 @@
                     <keystore>${keystore}</keystore>
                     <keystorealias>${project.artifactId}</keystorealias>
                     <keystorepassword>${project.artifactId}</keystorepassword>
+                    <licenseFile>./LICENSE</licenseFile>
+                    <licenseName>Apache License, Version 2.0</licenseName>
                 </configuration>
             </plugin>
             <plugin>
