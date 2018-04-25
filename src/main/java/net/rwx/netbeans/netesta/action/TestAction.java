@@ -20,16 +20,12 @@ import net.rwx.netbeans.netesta.ui.Progressor;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import org.netbeans.api.java.project.JavaProjectConstants;
-import org.netbeans.api.java.queries.AnnotationProcessingQuery;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
-import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.util.Exceptions;
@@ -105,6 +101,7 @@ public class TestAction {
                 if (line.contains("@Test")) {
                     return true;
                 }
+                line = br.readLine();
             }
             return false;
         } catch (IOException ex) {
