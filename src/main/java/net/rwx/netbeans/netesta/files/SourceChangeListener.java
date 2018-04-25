@@ -42,7 +42,7 @@ public class SourceChangeListener extends FileChangeAdapter {
                 DataObject dataObject = DataObject.find(fe.getFile());
                 TestAction testAction = TestActionFactory.get().get(dataObject);
 
-                if (testAction.supportedAndEnabled() && testAction.hasNeededSourceTestClass()) {
+                if (testAction.supportedAndEnabled() && testAction.testSourceExists() && testAction.testSourceContainsTestableMethod()) {
                     if (isCompileOnSaveEnabled(fe.getFile()) && !testAction.isWaitingForCompilation()) {
                         testAction.waitForCompilation();
                     } else if (!isCompileOnSaveEnabled(fe.getFile())) {

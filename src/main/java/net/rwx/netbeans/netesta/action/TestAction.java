@@ -15,16 +15,24 @@
  */
 package net.rwx.netbeans.netesta.action;
 
+import java.io.BufferedReader;
 import net.rwx.netbeans.netesta.ui.Progressor;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import org.netbeans.api.java.project.JavaProjectConstants;
+import org.netbeans.api.java.queries.AnnotationProcessingQuery;
 import org.netbeans.api.project.FileOwnerQuery;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectUtils;
 import org.netbeans.api.project.SourceGroup;
 import org.netbeans.spi.project.ActionProvider;
+import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
+import org.openide.util.Exceptions;
 import org.openide.util.lookup.Lookups;
 
 /**
@@ -37,7 +45,7 @@ public class TestAction {
     private final DataObject dataObject;
     private final ActionProvider actionProvider;
     private final Progressor progressor;
-    
+
     public TestAction(DataObject dataObject) {
         this.dataObject = dataObject;
         this.project = FileOwnerQuery.getOwner(dataObject.getPrimaryFile());
@@ -61,7 +69,7 @@ public class TestAction {
     public boolean isWaitingForCompilation() {
         return waitingForCompilation;
     }
-    
+
     public boolean supportedAndEnabled() {
         String actionCode = ActionProvider.COMMAND_TEST_SINGLE;
         return isTestFileActionIn(actionProvider.getSupportedActions())
@@ -84,23 +92,42 @@ public class TestAction {
         return false;
     }
 
-    public boolean hasNeededSourceTestClass() {
+    public boolean testSourceExists() {
+        File testFile = getTestSource();
+        return testFile != null && testFile.exists();
+    }
+
+    public boolean testSourceContainsTestableMethod() {
+        File testFile = getTestSource();
+        try (BufferedReader br = new BufferedReader(new FileReader(testFile))) {
+            String line = br.readLine();
+            while (line != null) {
+                if (line.contains("@Test")) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (IOException ex) {
+            Exceptions.printStackTrace(ex);
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private File getTestSource() {
         SourceGroup group = getSourceGroup();
         if (group.getName().contains("Test")) {
-            return true;
+            return FileUtil.toFile(dataObject.getPrimaryFile());
         } else {
             String groupRootFolder = group.getRootFolder().getPath();
             String relativeClassPath = dataObject.getPrimaryFile().getPath().substring(groupRootFolder.length());
             SourceGroup testSource = findTestJavaSourceGroup();
             if (testSource != null) {
                 String relativeTestClassPath = relativeClassPath.replace(".java", "Test.java");
-                File expectedTestClass = new File(testSource.getRootFolder().getPath() + relativeTestClassPath);
-                if (expectedTestClass.exists()) {
-                    return true;
-                }
+                return new File(testSource.getRootFolder().getPath() + relativeTestClassPath);
+            } else {
+                return null;
             }
         }
-        return false;
     }
 
     private SourceGroup getSourceGroup() {
@@ -129,7 +156,7 @@ public class TestAction {
     }
 
     private boolean waitingForCompilation = false;
-    
+
     public void waitForCompilation() {
         waitingForCompilation = true;
         progressor.start();
